@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+import os
+
 from .database import engine, SessionLocal, Base
 from .models import Event
 from .schemas import EventCreate
@@ -8,19 +10,42 @@ from .seed import seed_data, reset_seed
 from .metrics import compute_metrics
 from .utils import generate_event_hash
 
+
+# ---------- DATABASE SETUP ----------
+
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Factory MLOps API", version="1.0")
+
+# ---------- APP INIT ----------
+
+app = FastAPI(
+    title="Factory MLOps API",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
+
+
+# ---------- CORS CONFIG ----------
+
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000",          # Local dev
+        FRONTEND_URL                     # Production Vercel URL
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+
 API_PREFIX = "/api/v1"
+
+
+# ---------- DB DEPENDENCY ----------
 
 def get_db():
     db = SessionLocal()
@@ -29,14 +54,30 @@ def get_db():
     finally:
         db.close()
 
+
+# ---------- STARTUP SEED ----------
+
 @app.on_event("startup")
 def startup():
     db = SessionLocal()
-    seed_data(db)
-    db.close()
+    try:
+        seed_data(db)
+    finally:
+        db.close()
+
+
+# ---------- HEALTH CHECK ----------
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
+
+
+# ---------- CREATE EVENT ----------
 
 @app.post(f"{API_PREFIX}/events")
 def create_event(event: EventCreate, db: Session = Depends(get_db)):
+
     event_hash = generate_event_hash(event)
 
     existing = db.query(Event).filter(Event.event_hash == event_hash).first()
@@ -44,17 +85,29 @@ def create_event(event: EventCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=409, detail="Duplicate event")
 
     db_event = Event(**event.dict(), event_hash=event_hash)
+
     db.add(db_event)
     db.commit()
     db.refresh(db_event)
+
     return db_event
+
+
+# ---------- GET METRICS ----------
 
 @app.get(f"{API_PREFIX}/metrics")
 def get_metrics(db: Session = Depends(get_db)):
+
     events = db.query(Event).all()
+
     return compute_metrics(events)
+
+
+# ---------- RESET SEED ----------
 
 @app.post(f"{API_PREFIX}/seed/reset")
 def reset_data(db: Session = Depends(get_db)):
+
     reset_seed(db)
+
     return {"message": "Seed reset successful"}
