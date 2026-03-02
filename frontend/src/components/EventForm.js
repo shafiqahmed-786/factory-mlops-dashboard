@@ -7,7 +7,7 @@ function EventForm({ onSuccess }) {
   const [type, setType] = useState("working");
 
   const handleSubmit = async () => {
-    await postEvent({
+    await createEvent({
       timestamp: new Date().toISOString(),
       worker_id: worker,
       workstation_id: station,
