@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API = "http://127.0.0.1:8000";
+const API = "https://factory-mlops-dashboard.onrender.com";
 
 export const getMetrics = () =>
   axios.get(`${API}/api/v1/metrics`);
