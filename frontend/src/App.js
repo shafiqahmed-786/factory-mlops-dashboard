@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { getMetrics, resetSeed } from "./api";
 import FactorySummary from "./components/FactorySummary";
 import WorkersTable from "./components/WorkersTable";
@@ -11,17 +11,13 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [selectedWorker, setSelectedWorker] = useState("ALL");
   const [autoRefresh, setAutoRefresh] = useState(false);
-  const [previousFactory, setPreviousFactory] = useState(null);
+  
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
   try {
     setLoading(true);
 
     const response = await getMetrics();
-
-    if (data?.factory) {
-      setPreviousFactory(data.factory);
-    }
 
     setData(response.data);
   } catch (error) {
@@ -29,7 +25,7 @@ function App() {
   } finally {
     setLoading(false);
   }
-};
+}, []);
 
   const handleReset = async () => {
     await resetSeed();
@@ -58,16 +54,16 @@ function App() {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+  fetchData();
+  }, [fetchData]);
 
   useEffect(() => {
-    let interval;
-    if (autoRefresh) {
-      interval = setInterval(fetchData, 5000);
-    }
-    return () => clearInterval(interval);
-  }, [autoRefresh]);
+  let interval;
+  if (autoRefresh) {
+    interval = setInterval(fetchData, 5000);
+  }
+  return () => clearInterval(interval);
+  }, [autoRefresh, fetchData]);
 
   if (loading) {
     return (
