@@ -5,7 +5,6 @@ import WorkersTable from "./components/WorkersTable";
 import WorkstationsTable from "./components/WorkstationsTable";
 import EventForm from "./components/EventForm";
 import ProductionTrend from "./components/ProductionTrend";
-import React, { useEffect, useState, useCallback } from "react";
 
 function App() {
   const [data, setData] = useState(null);
